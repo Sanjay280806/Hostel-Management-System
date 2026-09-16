@@ -1,5 +1,3 @@
-Here is a complete, production-ready `README.md` for your **Hostel Management System** project. You can copy and paste this directly into a `README.md` file at the root of your repository.
-
 ---
 
 ```markdown
