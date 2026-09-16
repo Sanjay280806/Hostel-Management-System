@@ -1,8 +1,3 @@
-Here is a complete, production-ready `README.md` for your **Hostel Management System** project. You can copy and paste this directly into a `README.md` file at the root of your repository.
-
----
-
-```markdown
 # Hostel Management System (HMS)
 
 > A centralized, full-stack web application designed to automate and simplify hostel administration, including student registrations, room allocations, fee payments, complaints, visitor logs, and daily attendance[cite: 3].
@@ -205,9 +200,3 @@ npm start
 
 
 ---
-
-Developed as part of the Software Engineering Mini Project at Kumaraguru College of Technology.
-
-```
-
-```
