@@ -200,3 +200,9 @@ npm start
 
 
 ---
+
+Developed as part of the Software Engineering Mini Project at Kumaraguru College of Technology.
+
+```
+
+```
