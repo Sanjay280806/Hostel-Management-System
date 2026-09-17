@@ -1,0 +1,20 @@
+{
+  "name": "hostel-management-system",
+  "version": "1.0.0",
+  "description": "> A centralized, full-stack web application designed to automate and simplify hostel administration, including student registrations, room allocations, fee payments, complaints, visitor logs, and daily attendance[cite: 3].",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sanjay280806/Hostel-Management-System.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Sanjay280806/Hostel-Management-System/issues"
+  },
+  "homepage": "https://github.com/Sanjay280806/Hostel-Management-System#readme"
+}
