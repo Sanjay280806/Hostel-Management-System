@@ -1,18 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { visitorService } from '../../services/visitorService';
 import { studentService } from '../../services/studentService';
-
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose}>✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
+import { Card, PageHeader, Button, Badge, Input, Select, Modal, Table } from '../../components/ui';
+import { Users, Plus, LogOut, Clock } from 'lucide-react';
 
 const VisitorsPage = () => {
   const [visitors, setVisitors] = useState([]);
@@ -100,21 +90,91 @@ const VisitorsPage = () => {
     }
   };
 
+  const columns = [
+    {
+      header: 'Visitor Name',
+      field: 'visitorName',
+      render: (v) => <span className="font-medium text-gray-900">{v.visitorName}</span>
+    },
+    {
+      header: 'Visiting Student',
+      field: 'studentId',
+      render: (v) => (
+        <div>
+          <div className="font-medium text-gray-900">{v.studentId?.name}</div>
+          <div className="text-xs text-gray-500">Room: {v.studentId?.roomNumber || 'N/A'}</div>
+        </div>
+      )
+    },
+    {
+      header: 'Check-In Time',
+      field: 'checkIn',
+      render: (v) => (
+        <div className="flex items-center text-gray-500 text-sm">
+          <Clock size={14} className="mr-1.5" />
+          {new Date(v.checkIn).toLocaleString()}
+        </div>
+      )
+    },
+    {
+      header: 'Check-Out Time',
+      field: 'checkOut',
+      render: (v) => (
+        <div className="flex items-center text-gray-500 text-sm">
+          {v.checkOut ? (
+            <>
+              <Clock size={14} className="mr-1.5" />
+              {new Date(v.checkOut).toLocaleString()}
+            </>
+          ) : (
+            '—'
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Status',
+      field: 'status',
+      render: (v) => (
+        <Badge variant={v.status === 'In' ? 'amber' : 'gray'}>
+          {v.status}
+        </Badge>
+      )
+    },
+    {
+      header: 'Actions',
+      field: 'actions',
+      render: (v) => (
+        v.status === 'In' ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => openCheckout(v)}
+            icon={LogOut}
+          >
+            Check Out
+          </Button>
+        ) : null
+      )
+    }
+  ];
+
   return (
-    <div className="page">
+    <div className="flex flex-col gap-6">
       {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
 
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Visitor Logs</h1>
-          <p className="page-subtitle">Track incoming and outgoing hostel visitors</p>
-        </div>
-        <button className="btn-primary btn-sm" onClick={openAdd}>
-          + Check-In Visitor
-        </button>
-      </div>
+      <PageHeader 
+        title="Visitor Logs" 
+        subtitle="Track incoming and outgoing hostel visitors"
+        icon={Users}
+        action={
+          <Button icon={Plus} onClick={openAdd}>
+            Check-In Visitor
+          </Button>
+        }
+      />
 
-      <div className="filter-tabs">
+      <div className="flex gap-2">
         {[
           { value: '', label: 'All Visitors' },
           { value: 'In', label: 'Currently In' },
@@ -122,7 +182,11 @@ const VisitorsPage = () => {
         ].map((f) => (
           <button
             key={f.value}
-            className={`filter-tab ${statusFilter === f.value ? 'filter-tab-active' : ''}`}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              statusFilter === f.value 
+                ? 'bg-indigo-50 text-indigo-700 ring-1 ring-indigo-600/20' 
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
             onClick={() => setStatusFilter(f.value)}
           >
             {f.label}
@@ -130,113 +194,79 @@ const VisitorsPage = () => {
         ))}
       </div>
 
-      <div className="table-card">
-        {loading ? (
-          <div className="table-loading"><div className="spinner" /></div>
-        ) : visitors.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">👥</div>
-            <p>{statusFilter ? `No ${statusFilter} visitors found.` : 'No visitors logged yet.'}</p>
+      <Card noPadding>
+        <Table 
+          columns={columns} 
+          data={visitors} 
+          keyField="_id" 
+          loading={loading}
+          emptyMessage={statusFilter ? `No ${statusFilter.toLowerCase()} visitors found.` : 'No visitors logged yet.'}
+        />
+      </Card>
+
+      <Modal 
+        isOpen={modal === 'add'} 
+        onClose={closeModal} 
+        title="Check-In Visitor"
+      >
+        <form onSubmit={handleCreate} className="space-y-5">
+          {formError && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 rounded-md ring-1 ring-red-500/20">
+              {formError}
+            </div>
+          )}
+          
+          <Input
+            label="Visitor Name"
+            name="visitorName"
+            placeholder="e.g. John Doe"
+            value={form.visitorName}
+            onChange={handleFormChange}
+            icon={Users}
+          />
+
+          <Select
+            label="Visiting Student"
+            name="studentId"
+            value={form.studentId}
+            onChange={handleFormChange}
+            options={students.map(s => ({
+              value: s._id,
+              label: `${s.name} (${s.rollNo})`
+            }))}
+          />
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={formLoading}>
+              Check In
+            </Button>
           </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Visitor Name</th>
-                <th>Visiting Student</th>
-                <th>Check-In Time</th>
-                <th>Check-Out Time</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visitors.map((v) => (
-                <tr key={v._id}>
-                  <td className="td-bold">{v.visitorName}</td>
-                  <td className="td-bold">
-                    {v.studentId?.name} <br/>
-                    <span className="td-muted" style={{fontSize: '0.8rem'}}>Room: {v.studentId?.roomNumber || 'N/A'}</span>
-                  </td>
-                  <td className="td-muted">{new Date(v.checkIn).toLocaleString()}</td>
-                  <td className="td-muted">
-                    {v.checkOut ? new Date(v.checkOut).toLocaleString() : '—'}
-                  </td>
-                  <td>
-                    <span className={`badge ${v.status === 'In' ? 'badge-amber' : 'badge-gray'}`}>
-                      {v.status}
-                    </span>
-                  </td>
-                  <td>
-                    {v.status === 'In' && (
-                      <button className="btn-outline-danger btn-sm" onClick={() => openCheckout(v)} style={{borderColor: '#8b5cf6', color: '#8b5cf6'}}>
-                        Check Out
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+        </form>
+      </Modal>
 
-      {modal === 'add' && (
-        <Modal title="Check-In Visitor" onClose={closeModal}>
-          <form onSubmit={handleCreate}>
-            {formError && <div className="alert alert-error">{formError}</div>}
-            
-            <div className="form-group">
-              <label className="form-label">Visitor Name</label>
-              <input
-                name="visitorName"
-                type="text"
-                className="form-input form-input-plain"
-                placeholder="e.g. John Doe"
-                value={form.visitorName}
-                onChange={handleFormChange}
-              />
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Visiting Student</label>
-              <select
-                name="studentId"
-                className="form-input form-input-plain form-select"
-                value={form.studentId}
-                onChange={handleFormChange}
-              >
-                <option value="">— Select Student —</option>
-                {students.map(s => (
-                  <option key={s._id} value={s._id}>
-                    {s.name} ({s.rollNo})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading}>
-                {formLoading ? 'Saving…' : 'Check In'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {modal === 'checkout' && (
-        <Modal title="Check-Out Visitor" onClose={closeModal}>
-          <p className="confirm-msg">
-            Are you sure you want to check out <strong>{selectedVisitor?.visitorName}</strong>? <br/>
+      <Modal 
+        isOpen={modal === 'checkout'} 
+        onClose={closeModal} 
+        title="Check-Out Visitor"
+      >
+        <div className="space-y-5">
+          <p className="text-gray-600">
+            Are you sure you want to check out <strong className="text-gray-900">{selectedVisitor?.visitorName}</strong>? <br/>
             This will record the current time as the check-out time.
           </p>
-          <div className="modal-actions">
-            <button className="btn-ghost" onClick={closeModal}>Cancel</button>
-            <button className="btn-primary btn-sm" onClick={handleCheckout}>Confirm Check-Out</button>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={closeModal}>
+              Cancel
+            </Button>
+            <Button onClick={handleCheckout} icon={LogOut}>
+              Confirm Check-Out
+            </Button>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 };

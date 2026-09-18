@@ -2,18 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { allocationService } from '../../services/allocationService';
 import { studentService } from '../../services/studentService';
 import { roomService } from '../../services/roomService';
-
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose}>✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
+import { PageHeader, Table, Badge, Modal, Input, Select, Button, Card } from '../../components/ui';
+import { ClipboardList, Plus } from 'lucide-react';
 
 const AllocationsPage = () => {
   const [allocations, setAllocations] = useState([]);
@@ -104,25 +94,53 @@ const AllocationsPage = () => {
     }
   };
 
-  const activeCount = allocations.filter((a) => a.status === 'Active').length;
+  const columns = [
+    { header: 'Student', render: (a) => <span className="font-medium">{a.studentId?.name ?? '—'}</span> },
+    { header: 'Roll No.', render: (a) => a.studentId?.rollNo ?? '—' },
+    { header: 'Room', render: (a) => <Badge variant="indigo">{a.roomId?.roomNumber ?? '—'}</Badge> },
+    { header: 'Capacity', render: (a) => a.roomId ? <span className="text-gray-500">{a.roomId.occupiedCount}/{a.roomId.capacity}</span> : '—' },
+    { header: 'Start Date', render: (a) => a.startDate ? new Date(a.startDate).toLocaleDateString() : '—' },
+    { header: 'End Date', render: (a) => a.endDate ? new Date(a.endDate).toLocaleDateString() : '—' },
+    { header: 'Status', render: (a) => (
+        <Badge variant={a.status === 'Active' ? 'green' : 'gray'}>
+          {a.status}
+        </Badge>
+      ) 
+    },
+    { header: 'Actions', render: (a) => (
+        a.status === 'Active' ? (
+          <Button 
+            variant="danger" 
+            size="sm"
+            onClick={() => openVacate(a)}
+            id={`vacate-alloc-${a._id}`}
+          >
+            Vacate
+          </Button>
+        ) : null
+      )
+    }
+  ];
+
+  const studentOptions = students.map(s => ({ value: s._id, label: `${s.name} (${s.rollNo})` }));
+  const roomOptions = rooms.map(r => ({ value: r._id, label: `Room ${r.roomNumber} — ${r.occupiedCount}/${r.capacity} beds` }));
 
   return (
-    <div className="page">
+    <div className="flex flex-col gap-6">
       {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
 
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Room Allocations</h1>
-          <p className="page-subtitle">Assign and manage student room allocations</p>
-        </div>
-        <button className="btn-primary btn-sm" onClick={openAssign} id="assign-room-btn">
-          + Assign Room
-        </button>
-      </div>
+      <PageHeader
+        title="Room Allocations"
+        subtitle="Assign and manage student room allocations"
+        icon={ClipboardList}
+        action={
+          <Button onClick={openAssign} icon={Plus} id="assign-room-btn">
+            Assign Room
+          </Button>
+        }
+      />
 
-      {/* Filter Tabs */}
-      <div className="filter-tabs">
+      <div className="filter-tabs mb-6">
         {[
           { value: 'Active', label: 'Active' },
           { value: 'Vacated', label: 'Vacated' },
@@ -139,143 +157,69 @@ const AllocationsPage = () => {
         ))}
       </div>
 
-      {/* Table */}
-      <div className="table-card">
-        {loading ? (
-          <div className="table-loading"><div className="spinner" /></div>
-        ) : allocations.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">🗂️</div>
-            <p>{statusFilter ? `No ${statusFilter} allocations found.` : 'No allocations yet.'}</p>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Student</th>
-                <th>Roll No.</th>
-                <th>Room</th>
-                <th>Capacity</th>
-                <th>Start Date</th>
-                <th>End Date</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {allocations.map((a) => (
-                <tr key={a._id}>
-                  <td className="td-bold">{a.studentId?.name ?? '—'}</td>
-                  <td>{a.studentId?.rollNo ?? '—'}</td>
-                  <td><span className="badge badge-indigo">{a.roomId?.roomNumber ?? '—'}</span></td>
-                  <td className="td-muted">
-                    {a.roomId ? `${a.roomId.occupiedCount}/${a.roomId.capacity}` : '—'}
-                  </td>
-                  <td className="td-muted">
-                    {a.startDate ? new Date(a.startDate).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="td-muted">
-                    {a.endDate ? new Date(a.endDate).toLocaleDateString() : '—'}
-                  </td>
-                  <td>
-                    <span className={`badge ${a.status === 'Active' ? 'badge-green' : 'badge-gray'}`}>
-                      {a.status}
-                    </span>
-                  </td>
-                  <td>
-                    {a.status === 'Active' && (
-                      <button
-                        className="btn-outline-danger btn-sm"
-                        onClick={() => openVacate(a)}
-                        id={`vacate-alloc-${a._id}`}
-                      >
-                        Vacate
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Card noPadding>
+        <Table 
+          columns={columns} 
+          data={allocations} 
+          keyField="_id" 
+          loading={loading}
+          emptyMessage={statusFilter ? `No ${statusFilter} allocations found.` : 'No allocations yet.'}
+        />
+      </Card>
 
-      {/* Assign Modal */}
-      {modal === 'assign' && (
-        <Modal title="Assign Room to Student" onClose={closeModal}>
-          <form onSubmit={handleAssign} id="assign-room-form">
-            {formError && <div className="alert alert-error">{formError}</div>}
-            <div className="form-group">
-              <label className="form-label">Select Student</label>
-              <select
-                id="assign-studentId"
-                name="studentId"
-                className="form-input form-input-plain form-select"
-                value={form.studentId}
-                onChange={handleFormChange}
-              >
-                <option value="">— Choose a student —</option>
-                {students.map((s) => (
-                  <option key={s._id} value={s._id}>
-                    {s.name} ({s.rollNo})
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Select Available Room</label>
-              <select
-                id="assign-roomId"
-                name="roomId"
-                className="form-input form-input-plain form-select"
-                value={form.roomId}
-                onChange={handleFormChange}
-              >
-                <option value="">— Choose a room —</option>
-                {rooms.map((r) => (
-                  <option key={r._id} value={r._id}>
-                    Room {r.roomNumber} — {r.occupiedCount}/{r.capacity} beds
-                  </option>
-                ))}
-              </select>
-              {rooms.length === 0 && (
-                <p className="form-hint">⚠ No available rooms. Add rooms or vacate existing allocations.</p>
-              )}
-            </div>
-            <div className="form-group">
-              <label className="form-label">Start Date</label>
-              <input
-                id="assign-startDate"
-                name="startDate"
-                type="date"
-                className="form-input form-input-plain"
-                value={form.startDate}
-                onChange={handleFormChange}
-              />
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading || rooms.length === 0} id="submit-assign-room">
-                {formLoading ? 'Assigning…' : 'Assign Room'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Modal isOpen={modal === 'assign'} onClose={closeModal} title="Assign Room to Student" maxWidth="md">
+        <form onSubmit={handleAssign} id="assign-room-form" className="space-y-4">
+          {formError && <div className="alert alert-error">{formError}</div>}
+          
+          <Select
+            label="Select Student"
+            id="assign-studentId"
+            name="studentId"
+            value={form.studentId}
+            onChange={handleFormChange}
+            options={studentOptions}
+          />
 
-      {/* Vacate Confirm */}
-      {modal === 'vacate' && (
-        <Modal title="Vacate Room" onClose={closeModal}>
-          <p className="confirm-msg">
-            Vacate <strong>{selectedAlloc?.studentId?.name}</strong> from room{' '}
-            <strong>{selectedAlloc?.roomId?.roomNumber}</strong>? This will decrement the room's occupancy count.
-          </p>
-          <div className="modal-actions">
-            <button className="btn-ghost" onClick={closeModal} id="vacate-cancel">Cancel</button>
-            <button className="btn-danger" onClick={handleVacate} id="vacate-confirm">Confirm Vacate</button>
+          <Select
+            label="Select Available Room"
+            id="assign-roomId"
+            name="roomId"
+            value={form.roomId}
+            onChange={handleFormChange}
+            options={roomOptions}
+          />
+          {rooms.length === 0 && modal === 'assign' && (
+            <p className="text-sm text-amber-600 mt-1">⚠ No available rooms. Add rooms or vacate existing allocations.</p>
+          )}
+
+          <Input
+            label="Start Date"
+            type="date"
+            id="assign-startDate"
+            name="startDate"
+            value={form.startDate}
+            onChange={handleFormChange}
+          />
+
+          <div className="flex justify-end gap-3 mt-6">
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" loading={formLoading} disabled={rooms.length === 0} id="submit-assign-room">
+              Assign Room
+            </Button>
           </div>
-        </Modal>
-      )}
+        </form>
+      </Modal>
+
+      <Modal isOpen={modal === 'vacate'} onClose={closeModal} title="Vacate Room" maxWidth="sm">
+        <p className="mb-6 text-gray-600">
+          Vacate <strong className="text-gray-900">{selectedAlloc?.studentId?.name}</strong> from room{' '}
+          <strong className="text-gray-900">{selectedAlloc?.roomId?.roomNumber}</strong>? This will decrement the room's occupancy count.
+        </p>
+        <div className="flex justify-end gap-3">
+          <Button variant="ghost" onClick={closeModal} id="vacate-cancel">Cancel</Button>
+          <Button variant="danger" onClick={handleVacate} id="vacate-confirm">Confirm Vacate</Button>
+        </div>
+      </Modal>
     </div>
   );
 };

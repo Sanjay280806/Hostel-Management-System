@@ -25,9 +25,8 @@ const complaintSchema = new mongoose.Schema(
       default: 'Pending',
     },
     assignedTo: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
+      type: String,
+      default: '',
     },
   },
   { timestamps: true }

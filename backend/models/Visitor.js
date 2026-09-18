@@ -23,8 +23,8 @@ const visitorSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Checked-In', 'Checked-Out'],
-      default: 'Checked-In',
+      enum: ['In', 'Out'],
+      default: 'In',
     },
   },
   { timestamps: true }

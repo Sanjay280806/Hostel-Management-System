@@ -1,18 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { noticeService } from '../../services/noticeService';
 import { useAuth } from '../../context/AuthContext';
-
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose}>✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
+import { Megaphone, Plus, Trash2, Calendar, User } from 'lucide-react';
+import { PageHeader, Card, Button, Modal, Input } from '../../components/ui';
+import { motion } from 'framer-motion';
 
 const NoticeBoardPage = () => {
   const [notices, setNotices] = useState([]);
@@ -94,109 +85,122 @@ const NoticeBoardPage = () => {
   };
 
   return (
-    <div className="page">
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
-
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Notice Board</h1>
-          <p className="page-subtitle">Announcements and important updates</p>
+    <div className="flex flex-col gap-6">
+      {toast && (
+        <div className={`fixed bottom-4 right-4 p-4 rounded-md shadow-lg z-50 ${
+          toast.type === 'error' ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+        }`}>
+          {toast.message}
         </div>
-        {(user?.role === 'Admin' || user?.role === 'Warden') && (
-          <button className="btn-primary btn-sm" onClick={openAdd}>
-            + Post Notice
-          </button>
+      )}
+
+      <PageHeader 
+        title="Notice Board" 
+        subtitle="Announcements and important updates"
+        icon={Megaphone}
+        action={(user?.role === 'Admin' || user?.role === 'Warden') && (
+          <Button onClick={openAdd} icon={Plus}>
+            Post Notice
+          </Button>
         )}
-      </div>
+      />
 
       {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}><div className="spinner" /></div>
-      ) : notices.length === 0 ? (
-        <div className="table-card table-empty">
-          <div className="table-empty-icon">📢</div>
-          <p>No notices posted yet.</p>
+        <div className="flex justify-center p-16">
+          <div className="ui-spinner ui-spinner-lg" />
         </div>
+      ) : notices.length === 0 ? (
+        <Card className="flex flex-col items-center justify-center p-12 text-center">
+          <Megaphone size={48} className="text-gray-300 mb-4" />
+          <p className="text-gray-500 text-lg">No notices posted yet.</p>
+        </Card>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {notices.map((n) => (
-            <div key={n._id} className="table-card" style={{ padding: '1.5rem', marginBottom: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '0.25rem' }}>{n.title}</h3>
-                  <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
-                    <span>Posted by {n.postedBy?.role || 'Admin'}</span>
-                    <span>•</span>
-                    <span>{new Date(n.createdAt).toLocaleDateString()}</span>
+        <div className="flex flex-col gap-4">
+          {notices.map((n, i) => (
+            <motion.div 
+              key={n._id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: Math.min(i * 0.05, 0.5) }}
+            >
+              <Card hover>
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">{n.title}</h3>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span className="flex items-center gap-1.5">
+                        <User size={16} /> 
+                        {n.postedBy?.role || 'Admin'}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Calendar size={16} /> 
+                        {new Date(n.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
                   </div>
+                  {user?.role === 'Admin' && (
+                    <Button 
+                      variant="danger" 
+                      size="sm" 
+                      icon={Trash2} 
+                      onClick={() => openDelete(n)} 
+                    />
+                  )}
                 </div>
-                {user?.role === 'Admin' && (
-                  <button className="btn-icon btn-icon-delete" onClick={() => openDelete(n)}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <p style={{ color: 'var(--color-text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>
-                {n.content}
-              </p>
-            </div>
+                <div className="h-px bg-gray-100 w-full mb-4"></div>
+                <p className="text-gray-700 leading-relaxed white-space-pre-wrap">
+                  {n.content}
+                </p>
+              </Card>
+            </motion.div>
           ))}
         </div>
       )}
 
-      {modal === 'add' && (
-        <Modal title="Post New Notice" onClose={closeModal}>
-          <form onSubmit={handleCreate}>
-            {formError && <div className="alert alert-error">{formError}</div>}
-            
-            <div className="form-group">
-              <label className="form-label">Title</label>
-              <input
-                name="title"
-                type="text"
-                className="form-input form-input-plain"
-                placeholder="e.g. Maintenance Scheduled for Sunday"
-                value={form.title}
-                onChange={handleFormChange}
-              />
-            </div>
+      <Modal isOpen={modal === 'add'} onClose={closeModal} title="Post New Notice">
+        <form onSubmit={handleCreate} className="space-y-4">
+          {formError && <div className="text-red-500 text-sm font-medium">{formError}</div>}
+          
+          <Input
+            label="Title"
+            name="title"
+            placeholder="e.g. Maintenance Scheduled for Sunday"
+            value={form.title}
+            onChange={handleFormChange}
+          />
 
-            <div className="form-group">
-              <label className="form-label">Content</label>
-              <textarea
-                name="content"
-                rows="5"
-                className="form-input form-input-plain"
-                placeholder="Detailed information..."
-                value={form.content}
-                onChange={handleFormChange}
-                style={{resize: 'vertical', paddingTop: '0.75rem'}}
-              />
-            </div>
+          <div className="ui-input-container">
+            <label className="ui-label">Content</label>
+            <textarea
+              name="content"
+              rows="5"
+              className="ui-input"
+              placeholder="Detailed information..."
+              value={form.content}
+              onChange={handleFormChange}
+              style={{ resize: 'vertical', paddingTop: '0.75rem' }}
+            />
+          </div>
 
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading}>
-                {formLoading ? 'Posting…' : 'Post Notice'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" loading={formLoading}>Post Notice</Button>
+          </div>
+        </form>
+      </Modal>
 
-      {modal === 'delete' && (
-        <Modal title="Delete Notice" onClose={closeModal}>
-          <p className="confirm-msg">
-            Are you sure you want to delete the notice <strong>{selectedNotice?.title}</strong>? <br/>
+      <Modal isOpen={modal === 'delete'} onClose={closeModal} title="Delete Notice">
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Are you sure you want to delete the notice <strong className="text-gray-900">{selectedNotice?.title}</strong>? <br/>
             This action cannot be undone.
           </p>
-          <div className="modal-actions">
-            <button className="btn-ghost" onClick={closeModal}>Cancel</button>
-            <button className="btn-danger btn-sm" onClick={handleDelete}>Delete Notice</button>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete}>Delete Notice</Button>
           </div>
-        </Modal>
-      )}
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -1,31 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { studentService } from '../../services/studentService';
+import { PageHeader, Button, Badge, Input, Modal, Table, Card } from '../../components/ui';
+import { Search, Plus, Edit2, Trash2, Users } from 'lucide-react';
 
-// ─── Reusable Modal ───────────────────────────────────────────────────────────
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose} id="modal-close-btn">✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
+const INITIAL_FORM = { name: '', contact: '', rollNo: '', email: '', password: '' };
 
 // ─── Confirm Dialog ───────────────────────────────────────────────────────────
-const ConfirmDialog = ({ message, onConfirm, onCancel }) => (
-  <Modal title="Confirm Action" onClose={onCancel}>
-    <p className="confirm-msg">{message}</p>
-    <div className="modal-actions">
-      <button className="btn-ghost" onClick={onCancel} id="confirm-cancel-btn">Cancel</button>
-      <button className="btn-danger" onClick={onConfirm} id="confirm-delete-btn">Delete</button>
+const ConfirmDialog = ({ isOpen, message, onConfirm, onCancel }) => (
+  <Modal isOpen={isOpen} title="Confirm Action" onClose={onCancel}>
+    <p className="mb-6 text-gray-600">{message}</p>
+    <div className="flex justify-end space-x-3">
+      <Button variant="ghost" onClick={onCancel} id="confirm-cancel-btn">Cancel</Button>
+      <Button variant="danger" onClick={onConfirm} id="confirm-delete-btn">Delete</Button>
     </div>
   </Modal>
 );
-
-const INITIAL_FORM = { name: '', contact: '', rollNo: '', email: '', password: '' };
 
 const StudentsPage = () => {
   const [students, setStudents] = useState([]);
@@ -123,206 +112,228 @@ const StudentsPage = () => {
     }
   };
 
+  const columns = [
+    {
+      header: 'Student ID',
+      field: 'studentId',
+      render: (row) => <Badge variant="indigo">{row.studentId}</Badge>
+    },
+    {
+      header: 'Name',
+      field: 'name',
+      render: (row) => <span className="font-semibold">{row.name}</span>
+    },
+    { header: 'Roll No.', field: 'rollNo' },
+    { header: 'Contact', field: 'contact' },
+    {
+      header: 'Email',
+      field: 'email',
+      render: (row) => <span className="text-gray-500">{row.userId?.email}</span>
+    },
+    {
+      header: 'Joined',
+      field: 'createdAt',
+      render: (row) => <span className="text-gray-500">{new Date(row.createdAt).toLocaleDateString()}</span>
+    },
+    {
+      header: 'Actions',
+      field: 'actions',
+      render: (row) => (
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={Edit2}
+            onClick={() => openEdit(row)}
+            id={`edit-student-${row._id}`}
+            title="Edit student"
+          />
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-500 hover:text-red-700 hover:bg-red-50"
+            icon={Trash2}
+            onClick={() => openDelete(row)}
+            id={`delete-student-${row._id}`}
+            title="Delete student"
+          />
+        </div>
+      )
+    }
+  ];
+
   return (
-    <div className="page">
+    <div className="flex flex-col gap-6">
       {/* Toast */}
       {toast && (
-        <div className={`toast toast-${toast.type}`}>{toast.message}</div>
+        <div className={`fixed bottom-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white ${toast.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
+          {toast.message}
+        </div>
       )}
 
       {/* Page Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Students</h1>
-          <p className="page-subtitle">Manage all registered students</p>
-        </div>
-        <button className="btn-primary btn-sm" onClick={openAdd} id="add-student-btn">
-          + Add Student
-        </button>
-      </div>
+      <PageHeader
+        title="Students"
+        subtitle="Manage all registered students"
+        icon={Users}
+        action={
+          <Button variant="primary" icon={Plus} onClick={openAdd} id="add-student-btn">
+            Add Student
+          </Button>
+        }
+      />
 
-      {/* Search Bar */}
-      <div className="search-bar-wrap">
-        <div className="search-bar">
-          <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            id="student-search-input"
-            type="text"
-            className="search-input"
+      <Card className="flex flex-col space-y-4">
+        {/* Search Bar */}
+        <div className="w-full md:w-1/3">
+          <Input
+            icon={Search}
             placeholder="Search by name, roll number or student ID…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            id="student-search-input"
           />
-          {search && (
-            <button className="search-clear" onClick={() => setSearch('')}>✕</button>
-          )}
         </div>
-      </div>
 
-      {/* Table */}
-      <div className="table-card">
-        {loading ? (
-          <div className="table-loading"><div className="spinner" /></div>
-        ) : students.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">👥</div>
-            <p>{search ? 'No students match your search.' : 'No students yet. Click "Add Student" to begin.'}</p>
+        {/* Table */}
+        <Table
+          columns={columns}
+          data={students}
+          keyField="_id"
+          loading={loading}
+          emptyMessage={search ? 'No students match your search.' : 'No students yet. Click "Add Student" to begin.'}
+        />
+
+        {/* Pagination */}
+        {!loading && pagination.pages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-100 pt-4 mt-4">
+            <span className="text-sm text-gray-500">
+              Showing page {page} of {pagination.pages} ({pagination.total} total)
+            </span>
+            <div className="flex space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => p - 1)}
+                id="prev-page-btn"
+              >
+                ← Prev
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={page >= pagination.pages}
+                onClick={() => setPage((p) => p + 1)}
+                id="next-page-btn"
+              >
+                Next →
+              </Button>
+            </div>
           </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Student ID</th>
-                <th>Name</th>
-                <th>Roll No.</th>
-                <th>Contact</th>
-                <th>Email</th>
-                <th>Joined</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((s) => (
-                <tr key={s._id}>
-                  <td><span className="badge badge-indigo">{s.studentId}</span></td>
-                  <td className="td-bold">{s.name}</td>
-                  <td>{s.rollNo}</td>
-                  <td>{s.contact}</td>
-                  <td className="td-muted">{s.userId?.email}</td>
-                  <td className="td-muted">{new Date(s.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <div className="action-btns">
-                      <button
-                        className="btn-icon btn-icon-edit"
-                        onClick={() => openEdit(s)}
-                        title="Edit student"
-                        id={`edit-student-${s._id}`}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                      </button>
-                      <button
-                        className="btn-icon btn-icon-delete"
-                        onClick={() => openDelete(s)}
-                        title="Delete student"
-                        id={`delete-student-${s._id}`}
-                      >
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <polyline points="3,6 5,6 21,6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                          <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         )}
-      </div>
-
-      {/* Pagination */}
-      {!loading && pagination.pages > 1 && (
-        <div className="pagination">
-          <span className="pagination-info">
-            Showing page {page} of {pagination.pages} ({pagination.total} total)
-          </span>
-          <div className="pagination-btns">
-            <button
-              className="btn-ghost btn-sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              id="prev-page-btn"
-            >← Prev</button>
-            <button
-              className="btn-ghost btn-sm"
-              disabled={page >= pagination.pages}
-              onClick={() => setPage((p) => p + 1)}
-              id="next-page-btn"
-            >Next →</button>
-          </div>
-        </div>
-      )}
+      </Card>
 
       {/* Add Modal */}
-      {modal === 'add' && (
-        <Modal title="Add New Student" onClose={closeModal}>
-          <form onSubmit={handleAdd} id="add-student-form">
-            {formError && <div className="alert alert-error">{formError}</div>}
-            {[
-              { name: 'name', label: 'Full Name', placeholder: 'e.g. Samuthrika Shree S', type: 'text' },
-              { name: 'rollNo', label: 'Roll Number', placeholder: 'e.g. 24BCS237', type: 'text' },
-              { name: 'contact', label: 'Contact Number', placeholder: 'e.g. 9876543210', type: 'text' },
-              { name: 'email', label: 'Email Address', placeholder: 'student@kct.ac.in', type: 'email' },
-              { name: 'password', label: 'Initial Password', placeholder: 'Min. 6 characters', type: 'password' },
-            ].map((f) => (
-              <div className="form-group" key={f.name}>
-                <label className="form-label">{f.label}</label>
-                <input
-                  id={`add-${f.name}`}
-                  name={f.name}
-                  type={f.type}
-                  className="form-input form-input-plain"
-                  placeholder={f.placeholder}
-                  value={form[f.name]}
-                  onChange={handleFormChange}
-                />
-              </div>
-            ))}
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading} id="submit-add-student">
-                {formLoading ? 'Creating…' : 'Create Student'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Modal isOpen={modal === 'add'} title="Add New Student" onClose={closeModal}>
+        <form onSubmit={handleAdd} id="add-student-form" className="space-y-4">
+          {formError && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{formError}</div>}
+          
+          <Input
+            label="Full Name"
+            name="name"
+            placeholder="e.g. Samuthrika Shree S"
+            value={form.name}
+            onChange={handleFormChange}
+            id="add-name"
+          />
+          <Input
+            label="Roll Number"
+            name="rollNo"
+            placeholder="e.g. 24BCS237"
+            value={form.rollNo}
+            onChange={handleFormChange}
+            id="add-rollNo"
+          />
+          <Input
+            label="Contact Number"
+            name="contact"
+            placeholder="e.g. 9876543210"
+            value={form.contact}
+            onChange={handleFormChange}
+            id="add-contact"
+          />
+          <Input
+            label="Email Address"
+            name="email"
+            type="email"
+            placeholder="student@kct.ac.in"
+            value={form.email}
+            onChange={handleFormChange}
+            id="add-email"
+          />
+          <Input
+            label="Initial Password"
+            name="password"
+            type="password"
+            placeholder="Min. 6 characters"
+            value={form.password}
+            onChange={handleFormChange}
+            id="add-password"
+          />
+
+          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-100">
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={formLoading} id="submit-add-student">
+              Create Student
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Edit Modal */}
-      {modal === 'edit' && (
-        <Modal title="Edit Student" onClose={closeModal}>
-          <form onSubmit={handleEdit} id="edit-student-form">
-            {formError && <div className="alert alert-error">{formError}</div>}
-            {[
-              { name: 'name', label: 'Full Name', type: 'text' },
-              { name: 'rollNo', label: 'Roll Number', type: 'text' },
-              { name: 'contact', label: 'Contact Number', type: 'text' },
-            ].map((f) => (
-              <div className="form-group" key={f.name}>
-                <label className="form-label">{f.label}</label>
-                <input
-                  id={`edit-${f.name}`}
-                  name={f.name}
-                  type={f.type}
-                  className="form-input form-input-plain"
-                  value={form[f.name]}
-                  onChange={handleFormChange}
-                />
-              </div>
-            ))}
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading} id="submit-edit-student">
-                {formLoading ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Modal isOpen={modal === 'edit'} title="Edit Student" onClose={closeModal}>
+        <form onSubmit={handleEdit} id="edit-student-form" className="space-y-4">
+          {formError && <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">{formError}</div>}
+          
+          <Input
+            label="Full Name"
+            name="name"
+            value={form.name}
+            onChange={handleFormChange}
+            id="edit-name"
+          />
+          <Input
+            label="Roll Number"
+            name="rollNo"
+            value={form.rollNo}
+            onChange={handleFormChange}
+            id="edit-rollNo"
+          />
+          <Input
+            label="Contact Number"
+            name="contact"
+            value={form.contact}
+            onChange={handleFormChange}
+            id="edit-contact"
+          />
+
+          <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-100">
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={formLoading} id="submit-edit-student">
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Delete Confirm */}
-      {modal === 'delete' && (
-        <ConfirmDialog
-          message={`Delete student "${selectedStudent?.name}" (${selectedStudent?.rollNo})? This will also remove their login account.`}
-          onConfirm={handleDelete}
-          onCancel={closeModal}
-        />
-      )}
+      <ConfirmDialog
+        isOpen={modal === 'delete'}
+        message={`Delete student "${selectedStudent?.name}" (${selectedStudent?.rollNo})? This will also remove their login account.`}
+        onConfirm={handleDelete}
+        onCancel={closeModal}
+      />
     </div>
   );
 };

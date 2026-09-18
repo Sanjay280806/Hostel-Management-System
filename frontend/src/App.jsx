@@ -30,17 +30,16 @@ const ComingSoon = ({ label }) => (
 const UnauthorizedPage = () => (
   <div style={{
     minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: 'linear-gradient(135deg, #0d0d1a 0%, #13131f 50%, #0f0f1f 100%)',
-    color: '#e2e8f0', fontFamily: 'Inter, sans-serif', flexDirection: 'column',
+    background: 'var(--color-bg-base)',
+    color: 'var(--color-text-primary)', fontFamily: 'Inter, sans-serif', flexDirection: 'column',
   }}>
-    <div style={{
-      background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
-      borderRadius: '16px', padding: '3rem', textAlign: 'center',
+    <div className="ui-card p-5" style={{
+      maxWidth: '400px', width: '100%', textAlign: 'center', background: 'var(--color-bg-surface)'
     }}>
       <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fca5a5' }}>Access Denied</h1>
-      <p style={{ color: '#94a3b8', marginTop: '0.5rem' }}>You do not have permission to view this page.</p>
-      <a href="/login" style={{ color: '#a5b4fc', textDecoration: 'underline', display: 'inline-block', marginTop: '1rem' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--color-error)' }}>Access Denied</h1>
+      <p style={{ color: 'var(--color-text-secondary)', marginTop: '0.5rem' }}>You do not have permission to view this page.</p>
+      <a href="/login" style={{ color: 'var(--color-primary)', fontWeight: 500, display: 'inline-block', marginTop: '1.5rem' }}>
         Return to Login
       </a>
     </div>

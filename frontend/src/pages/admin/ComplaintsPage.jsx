@@ -1,18 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { complaintService } from '../../services/complaintService';
 import { studentService } from '../../services/studentService';
-
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose}>✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
+import { PageHeader, Card, Button, Badge, Input, Select, Modal, Table } from '../../components/ui';
+import { Plus, MessageSquare, AlertCircle, Clock, CheckCircle, Search, Settings2, Edit } from 'lucide-react';
 
 const ComplaintsPage = () => {
   const [complaints, setComplaints] = useState([]);
@@ -116,188 +106,233 @@ const ComplaintsPage = () => {
     } finally { setFormLoading(false); }
   };
 
-  return (
-    <div className="page">
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'Resolved': return <Badge variant="success">Resolved</Badge>;
+      case 'In-Progress': return <Badge variant="primary">In Progress</Badge>;
+      case 'Pending':
+      default: return <Badge variant="warning">Pending</Badge>;
+    }
+  };
 
-      <div className="page-header">
+  const tableColumns = [
+    {
+      header: 'Date',
+      field: 'createdAt',
+      render: (row) => (
+        <span className="text-sm text-gray-500 font-medium">
+          {new Date(row.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+        </span>
+      )
+    },
+    {
+      header: 'Student',
+      field: 'student',
+      render: (row) => (
         <div>
-          <h1 className="page-title">Complaint Tracking</h1>
-          <p className="page-subtitle">Manage student issues and maintenance requests</p>
+          <div className="font-medium text-gray-900">{row.studentId?.name || 'Unknown'}</div>
+          <div className="text-xs text-gray-500">{row.studentId?.rollNo || 'N/A'}</div>
         </div>
-        <button className="btn-primary btn-sm" onClick={openAdd}>
-          + Log Complaint
-        </button>
+      )
+    },
+    {
+      header: 'Issue',
+      field: 'issue',
+      render: (row) => (
+        <div className="max-w-xs">
+          <div className="font-medium text-gray-900 truncate">{row.title}</div>
+          <div className="text-sm text-gray-500 truncate" title={row.description}>{row.description}</div>
+        </div>
+      )
+    },
+    {
+      header: 'Assigned To',
+      field: 'assignedTo',
+      render: (row) => (
+        <span className="text-sm text-gray-600">
+          {row.assignedTo ? row.assignedTo : <span className="text-gray-400 italic">Unassigned</span>}
+        </span>
+      )
+    },
+    {
+      header: 'Status',
+      field: 'status',
+      render: (row) => getStatusBadge(row.status)
+    },
+    {
+      header: 'Actions',
+      field: 'actions',
+      align: 'right',
+      render: (row) => (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          icon={Edit} 
+          onClick={() => openUpdate(row)}
+        >
+          Update
+        </Button>
+      )
+    }
+  ];
+
+  return (
+    <div className="flex flex-col gap-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 p-4 rounded-md shadow-lg ${
+          toast.type === 'error' ? 'bg-red-50 text-red-900 border border-red-200' : 'bg-green-50 text-green-900 border border-green-200'
+        }`}>
+          {toast.message}
+        </div>
+      )}
+
+      <PageHeader 
+        title="Issues & Complaints" 
+        subtitle="Track and resolve student maintenance and facility issues"
+        icon={MessageSquare}
+        action={
+          <Button variant="primary" icon={Plus} onClick={openAdd}>
+            New Issue
+          </Button>
+        }
+      />
+
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+        <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
+          {[
+            { value: '', label: 'All Issues' },
+            { value: 'Pending', label: 'Pending' },
+            { value: 'In-Progress', label: 'In Progress' },
+            { value: 'Resolved', label: 'Resolved' }
+          ].map((f) => (
+            <button
+              key={f.value}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                statusFilter === f.value 
+                  ? 'bg-gray-900 text-white' 
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              }`}
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        
+        {/* Decorative elements or additional filters could go here */}
+        <div className="flex items-center text-sm text-gray-500 gap-2">
+          <Settings2 size={16} />
+          <span>Manage Views</span>
+        </div>
       </div>
 
-      <div className="filter-tabs">
-        {[
-          { value: '', label: 'All Complaints' },
-          { value: 'Pending', label: 'Pending' },
-          { value: 'In-Progress', label: 'In-Progress' },
-          { value: 'Resolved', label: 'Resolved' }
-        ].map((f) => (
-          <button
-            key={f.value}
-            className={`filter-tab ${statusFilter === f.value ? 'filter-tab-active' : ''}`}
-            onClick={() => setStatusFilter(f.value)}
-          >
-            {f.label}
-          </button>
-        ))}
-      </div>
+      <Card noPadding>
+        <Table 
+          columns={tableColumns} 
+          data={complaints} 
+          keyField="_id" 
+          loading={loading}
+          emptyMessage={statusFilter ? `No ${statusFilter.toLowerCase()} issues found.` : 'No issues registered yet.'}
+        />
+      </Card>
 
-      <div className="table-card">
-        {loading ? (
-          <div className="table-loading"><div className="spinner" /></div>
-        ) : complaints.length === 0 ? (
-          <div className="table-empty">
-            <div className="table-empty-icon">🛠️</div>
-            <p>{statusFilter ? `No ${statusFilter} complaints found.` : 'No complaints registered yet.'}</p>
+      <Modal 
+        isOpen={modal === 'add'} 
+        onClose={closeModal} 
+        title="Log New Issue"
+        maxWidth="md"
+      >
+        <form onSubmit={handleCreate} className="space-y-4">
+          {formError && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle size={16} />
+              {formError}
+            </div>
+          )}
+          
+          <Select
+            label="Student"
+            name="studentId"
+            value={form.studentId}
+            onChange={handleFormChange}
+            options={students.map(s => ({
+              value: s._id,
+              label: `${s.name} (${s.rollNo})`
+            }))}
+          />
+
+          <Input
+            label="Title"
+            name="title"
+            placeholder="e.g. Broken window in room 102"
+            value={form.title}
+            onChange={handleFormChange}
+          />
+
+          <div className="ui-input-container">
+            <label className="ui-label">Description</label>
+            <textarea
+              name="description"
+              rows="4"
+              className="ui-input"
+              placeholder="Provide detailed information about the issue..."
+              value={form.description}
+              onChange={handleFormChange}
+              style={{ resize: 'vertical' }}
+            />
           </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Student</th>
-                <th>Title</th>
-                <th>Description</th>
-                <th>Assigned To</th>
-                <th>Status</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {complaints.map((c) => (
-                <tr key={c._id}>
-                  <td className="td-muted">{new Date(c.createdAt).toLocaleDateString()}</td>
-                  <td className="td-bold">
-                    {c.studentId?.name} <br/>
-                    <span className="td-muted" style={{fontSize: '0.8rem'}}>{c.studentId?.rollNo}</span>
-                  </td>
-                  <td className="td-bold">{c.title}</td>
-                  <td className="td-muted" style={{maxWidth: '250px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
-                    {c.description}
-                  </td>
-                  <td className="td-muted">{c.assignedTo || 'Unassigned'}</td>
-                  <td>
-                    <span className={`badge ${
-                      c.status === 'Resolved' ? 'badge-green' : 
-                      c.status === 'In-Progress' ? 'badge-indigo' : 'badge-amber'
-                    }`}>
-                      {c.status}
-                    </span>
-                  </td>
-                  <td>
-                    <button className="btn-outline-danger btn-sm" onClick={() => openUpdate(c)} style={{borderColor: '#6366f1', color: '#8b5cf6'}}>
-                      Update
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
 
-      {modal === 'add' && (
-        <Modal title="Log New Complaint" onClose={closeModal}>
-          <form onSubmit={handleCreate}>
-            {formError && <div className="alert alert-error">{formError}</div>}
-            
-            <div className="form-group">
-              <label className="form-label">Student</label>
-              <select
-                name="studentId"
-                className="form-input form-input-plain form-select"
-                value={form.studentId}
-                onChange={handleFormChange}
-              >
-                <option value="">— Select Student —</option>
-                {students.map(s => (
-                  <option key={s._id} value={s._id}>
-                    {s.name} ({s.rollNo})
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={formLoading}>
+              Create Issue
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
-            <div className="form-group">
-              <label className="form-label">Title</label>
-              <input
-                name="title"
-                type="text"
-                className="form-input form-input-plain"
-                placeholder="e.g. Broken window"
-                value={form.title}
-                onChange={handleFormChange}
-              />
+      <Modal 
+        isOpen={modal === 'update'} 
+        onClose={closeModal} 
+        title="Update Issue Status"
+        maxWidth="sm"
+      >
+        <form onSubmit={handleUpdate} className="space-y-4">
+          {formError && (
+            <div className="p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+              <AlertCircle size={16} />
+              {formError}
             </div>
+          )}
+          
+          <Select
+            label="Status"
+            name="status"
+            value={statusForm.status}
+            onChange={handleStatusFormChange}
+            options={[
+              { value: 'Pending', label: 'Pending' },
+              { value: 'In-Progress', label: 'In Progress' },
+              { value: 'Resolved', label: 'Resolved' }
+            ]}
+          />
 
-            <div className="form-group">
-              <label className="form-label">Description</label>
-              <textarea
-                name="description"
-                rows="3"
-                className="form-input form-input-plain"
-                placeholder="Provide details about the issue..."
-                value={form.description}
-                onChange={handleFormChange}
-                style={{resize: 'vertical', paddingTop: '0.75rem'}}
-              />
-            </div>
+          <Input
+            label="Assigned To"
+            name="assignedTo"
+            placeholder="e.g. Maintenance Team"
+            value={statusForm.assignedTo}
+            onChange={handleStatusFormChange}
+          />
 
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading}>
-                {formLoading ? 'Submitting…' : 'Submit Complaint'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {modal === 'update' && (
-        <Modal title="Update Complaint Status" onClose={closeModal}>
-          <form onSubmit={handleUpdate}>
-            {formError && <div className="alert alert-error">{formError}</div>}
-            
-            <div className="form-group">
-              <label className="form-label">Status</label>
-              <select
-                name="status"
-                className="form-input form-input-plain form-select"
-                value={statusForm.status}
-                onChange={handleStatusFormChange}
-              >
-                <option value="Pending">Pending</option>
-                <option value="In-Progress">In-Progress</option>
-                <option value="Resolved">Resolved</option>
-              </select>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">Assigned To (Staff Name)</label>
-              <input
-                name="assignedTo"
-                type="text"
-                className="form-input form-input-plain"
-                placeholder="e.g. John Doe (Maintenance)"
-                value={statusForm.assignedTo}
-                onChange={handleStatusFormChange}
-              />
-            </div>
-
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading}>
-                {formLoading ? 'Saving…' : 'Update Status'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-6">
+            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" variant="primary" loading={formLoading}>
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

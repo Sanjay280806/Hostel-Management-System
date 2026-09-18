@@ -1,22 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
+import { Search, Plus, Edit2, Trash2, Home, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { PageHeader, Card, StatCard, Badge, Button, Input, Modal } from '../../components/ui';
 import { roomService } from '../../services/roomService';
-
-const Modal = ({ title, onClose, children }) => (
-  <div className="modal-overlay" onClick={onClose}>
-    <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-      <div className="modal-header">
-        <h2 className="modal-title">{title}</h2>
-        <button className="modal-close" onClick={onClose}>✕</button>
-      </div>
-      <div className="modal-body">{children}</div>
-    </div>
-  </div>
-);
 
 const RoomsPage = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [modal, setModal] = useState(null);
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [form, setForm] = useState({ roomNumber: '', capacity: '' });
@@ -51,7 +43,7 @@ const RoomsPage = () => {
     setModal('edit');
   };
   const openDelete = (r) => { setSelectedRoom(r); setModal('delete'); };
-  const closeModal = () => { setModal(null); setSelectedRoom(null); };
+  const closeModal = () => { setModal(false); setSelectedRoom(null); };
 
   const handleFormChange = (e) => {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
@@ -101,185 +93,168 @@ const RoomsPage = () => {
     }
   };
 
-  // Summary counts
   const totalRooms = rooms.length;
   const available = rooms.filter((r) => r.status === 'Available').length;
   const full = rooms.filter((r) => r.status === 'Full').length;
   const totalCapacity = rooms.reduce((acc, r) => acc + r.capacity, 0);
   const totalOccupied = rooms.reduce((acc, r) => acc + r.occupiedCount, 0);
 
-  return (
-    <div className="page">
-      {toast && <div className={`toast toast-${toast.type}`}>{toast.message}</div>}
+  const filteredRooms = rooms.filter(room => 
+    room.roomNumber.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="page-title">Room Inventory</h1>
-          <p className="page-subtitle">Manage hostel rooms and track availability</p>
+  return (
+    <div className="flex flex-col gap-6">
+      {toast && (
+        <div className={`toast toast-${toast.type}`}>
+          {toast.message}
         </div>
-        <button className="btn-primary btn-sm" onClick={openAdd} id="add-room-btn">+ Add Room</button>
-      </div>
+      )}
+
+      <PageHeader 
+        title="Rooms Inventory"
+        subtitle="Manage hostel rooms and track availability"
+        action={
+          <Button variant="primary" onClick={openAdd} icon={Plus} id="add-room-btn">
+            Add Room
+          </Button>
+        }
+      />
 
       {/* Summary Stats */}
-      <div className="stats-row">
-        {[
-          { label: 'Total Rooms', value: totalRooms, color: 'indigo' },
-          { label: 'Available', value: available, color: 'green' },
-          { label: 'Full', value: full, color: 'red' },
-          { label: 'Occupancy', value: `${totalOccupied}/${totalCapacity}`, color: 'violet' },
-        ].map((s) => (
-          <div key={s.label} className={`stat-card stat-${s.color}`}>
-            <p className="stat-value">{s.value}</p>
-            <p className="stat-label">{s.label}</p>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+        <StatCard title="Total Rooms" value={totalRooms} color="indigo" icon={Home} />
+        <StatCard title="Available" value={available} color="emerald" icon={CheckCircle} />
+        <StatCard title="Full" value={full} color="rose" icon={XCircle} />
+        <StatCard title="Occupancy" value={`${totalOccupied}/${totalCapacity}`} color="violet" icon={AlertCircle} />
       </div>
 
-      {/* Filter Tabs */}
-      <div className="filter-tabs">
-        {['', 'Available', 'Full'].map((f) => (
-          <button
-            key={f}
-            className={`filter-tab ${statusFilter === f ? 'filter-tab-active' : ''}`}
-            onClick={() => setStatusFilter(f)}
-            id={`filter-${f || 'all'}`}
-          >
-            {f || 'All Rooms'}
-          </button>
-        ))}
+      {/* Toolbar */}
+      <div className="flex justify-between items-center gap-4" style={{ flexWrap: 'wrap' }}>
+        <div style={{ width: '100%', maxWidth: '320px' }}>
+          <Input 
+            placeholder="Search rooms..." 
+            icon={Search}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          {[
+            { label: 'All', value: '' },
+            { label: 'Available', value: 'Available' },
+            { label: 'Full', value: 'Full' }
+          ].map((f) => (
+            <Button 
+              key={f.value}
+              variant={statusFilter === f.value ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setStatusFilter(f.value)}
+            >
+              {f.label}
+            </Button>
+          ))}
+        </div>
       </div>
 
-      {/* Room Grid */}
+      {/* Grid */}
       {loading ? (
-        <div className="table-loading"><div className="spinner" /></div>
-      ) : rooms.length === 0 ? (
-        <div className="table-empty">
-          <div className="table-empty-icon">🏠</div>
-          <p>{statusFilter ? `No ${statusFilter} rooms.` : 'No rooms yet. Click "Add Room" to start.'}</p>
-        </div>
+        <div className="flex justify-center py-8"><div className="ui-spinner" /></div>
+      ) : filteredRooms.length === 0 ? (
+        <div className="text-center text-gray-500 py-12 text-sm bg-white rounded-lg border border-gray-200">No rooms found.</div>
       ) : (
-        <div className="room-grid">
-          {rooms.map((room) => {
-            const pct = room.capacity > 0 ? Math.round((room.occupiedCount / room.capacity) * 100) : 0;
-            const isFull = room.status === 'Full';
-            return (
-              <div key={room._id} className={`room-card ${isFull ? 'room-card-full' : 'room-card-available'}`}>
-                <div className="room-card-header">
-                  <span className="room-number">{room.roomNumber}</span>
-                  <span className={`badge ${isFull ? 'badge-red' : 'badge-green'}`}>
-                    {room.status}
-                  </span>
-                </div>
-                <div className="room-card-body">
-                  <p className="room-occupancy">
-                    <span className="room-occ-num">{room.occupiedCount}</span>
-                    <span className="room-occ-sep"> / </span>
-                    <span>{room.capacity}</span>
-                    <span className="room-occ-label"> beds</span>
-                  </p>
-                  {/* Capacity bar */}
-                  <div className="capacity-bar-wrap">
-                    <div
-                      className={`capacity-bar-fill ${isFull ? 'capacity-bar-red' : 'capacity-bar-green'}`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                  <p className="room-pct">{pct}% occupied</p>
-                </div>
-                <div className="room-card-actions">
-                  <button
-                    className="btn-icon btn-icon-edit"
-                    onClick={() => openEdit(room)}
-                    title="Edit room"
-                    id={`edit-room-${room._id}`}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                      <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                    </svg>
-                  </button>
-                  <button
-                    className="btn-icon btn-icon-delete"
-                    onClick={() => openDelete(room)}
-                    title="Delete room"
-                    disabled={room.occupiedCount > 0}
-                    id={`delete-room-${room._id}`}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3,6 5,6 21,6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                      <path d="M10 11v6M14 11v6M9 6V4h6v2" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <div className="dashboard-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+            {filteredRooms.map((room, index) => {
+              const pct = room.capacity > 0 ? Math.round((room.occupiedCount / room.capacity) * 100) : 0;
+              const isFull = room.status === 'Full';
+              const badgeVariant = isFull ? 'red' : room.occupiedCount > 0 ? 'amber' : 'green';
+              
+              return (
+                <motion.div
+                  key={room._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.05, 0.3) }}
+                >
+                  <Card hover style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--color-text-primary)' }}>{room.roomNumber}</h3>
+                      <Badge variant={badgeVariant}>{room.status}</Badge>
+                    </div>
+                    
+                    <div style={{ flex: 1, marginBottom: '1.5rem' }}>
+                      <div className="flex justify-between items-end mb-2">
+                        <div>
+                          <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Occupancy</p>
+                          <p style={{ fontSize: '1.25rem', fontWeight: '600', color: 'var(--color-text-primary)', marginTop: '0.25rem' }}>
+                            {room.occupiedCount} <span style={{ color: 'var(--color-text-muted)', fontSize: '1rem', fontWeight: 400 }}>/ {room.capacity}</span>
+                          </p>
+                        </div>
+                        <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                          {pct}%
+                        </span>
+                      </div>
+                      
+                      <div className="capacity-bar">
+                        <div 
+                          className="capacity-fill"
+                          style={{ 
+                            width: `${pct}%`, 
+                            backgroundColor: isFull ? 'var(--color-error)' : room.occupiedCount > 0 ? 'var(--color-warning)' : 'var(--color-success)' 
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4 border-t">
+                      <Button variant="secondary" size="sm" icon={Edit2} onClick={() => openEdit(room)} />
+                      <Button variant="danger" size="sm" icon={Trash2} onClick={() => openDelete(room)} disabled={room.occupiedCount > 0} />
+                    </div>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </div>
       )}
 
       {/* Add Modal */}
-      {modal === 'add' && (
-        <Modal title="Add New Room" onClose={closeModal}>
-          <form onSubmit={handleAdd} id="add-room-form">
-            {formError && <div className="alert alert-error">{formError}</div>}
-            <div className="form-group">
-              <label className="form-label">Room Number</label>
-              <input id="add-roomNumber" name="roomNumber" type="text" className="form-input form-input-plain"
-                placeholder="e.g. A101" value={form.roomNumber} onChange={handleFormChange} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Capacity (beds)</label>
-              <input id="add-capacity" name="capacity" type="number" className="form-input form-input-plain"
-                placeholder="e.g. 3" min="1" value={form.capacity} onChange={handleFormChange} />
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading} id="submit-add-room">
-                {formLoading ? 'Creating…' : 'Create Room'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
+      <Modal isOpen={modal === 'add'} onClose={closeModal} title="Add New Room">
+        <form onSubmit={handleAdd} className="flex flex-col gap-4">
+          {formError && <div className="ui-error-text">{formError}</div>}
+          <Input label="Room Number" name="roomNumber" placeholder="e.g. A101" value={form.roomNumber} onChange={handleFormChange} required />
+          <Input label="Capacity (beds)" type="number" name="capacity" min="1" value={form.capacity} onChange={handleFormChange} required />
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="primary" type="submit" loading={formLoading}>Create Room</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Edit Modal */}
-      {modal === 'edit' && (
-        <Modal title={`Edit Room ${selectedRoom?.roomNumber}`} onClose={closeModal}>
-          <form onSubmit={handleEdit} id="edit-room-form">
-            {formError && <div className="alert alert-error">{formError}</div>}
-            <div className="form-group">
-              <label className="form-label">Room Number</label>
-              <input id="edit-roomNumber" name="roomNumber" type="text" className="form-input form-input-plain"
-                value={form.roomNumber} onChange={handleFormChange} />
-            </div>
-            <div className="form-group">
-              <label className="form-label">Capacity (beds)</label>
-              <input id="edit-capacity" name="capacity" type="number" className="form-input form-input-plain"
-                min="1" value={form.capacity} onChange={handleFormChange} />
-            </div>
-            <div className="modal-actions">
-              <button type="button" className="btn-ghost" onClick={closeModal}>Cancel</button>
-              <button type="submit" className="btn-primary btn-sm" disabled={formLoading} id="submit-edit-room">
-                {formLoading ? 'Saving…' : 'Save Changes'}
-              </button>
-            </div>
-          </form>
-        </Modal>
-      )}
-
-      {/* Delete Confirm */}
-      {modal === 'delete' && (
-        <Modal title="Confirm Delete" onClose={closeModal}>
-          <p className="confirm-msg">
-            Delete room <strong>{selectedRoom?.roomNumber}</strong>? This cannot be undone.
-          </p>
-          <div className="modal-actions">
-            <button className="btn-ghost" onClick={closeModal} id="delete-room-cancel">Cancel</button>
-            <button className="btn-danger" onClick={handleDelete} id="delete-room-confirm">Delete Room</button>
+      <Modal isOpen={modal === 'edit'} onClose={closeModal} title={`Edit Room ${selectedRoom?.roomNumber}`}>
+        <form onSubmit={handleEdit} className="flex flex-col gap-4">
+          {formError && <div className="ui-error-text">{formError}</div>}
+          <Input label="Room Number" name="roomNumber" value={form.roomNumber} onChange={handleFormChange} required />
+          <Input label="Capacity (beds)" type="number" name="capacity" min="1" value={form.capacity} onChange={handleFormChange} required />
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="primary" type="submit" loading={formLoading}>Save Changes</Button>
           </div>
-        </Modal>
-      )}
+        </form>
+      </Modal>
+
+      {/* Delete Modal */}
+      <Modal isOpen={modal === 'delete'} onClose={closeModal} title="Confirm Delete">
+        <div className="flex flex-col gap-4">
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+            Are you sure you want to delete room <strong style={{ color: 'var(--color-text-primary)' }}>{selectedRoom?.roomNumber}</strong>?
+          </p>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button variant="danger" onClick={handleDelete}>Delete Room</Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
