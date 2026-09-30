@@ -9,6 +9,7 @@ const { protect, authorizeRoles } = require('../middleware/auth');
 
 router.use(protect);
 
+//route
 // GET /api/attendance?date=  → Admin, Warden
 router.get('/', authorizeRoles('Admin', 'Warden'), getAttendance);
 
