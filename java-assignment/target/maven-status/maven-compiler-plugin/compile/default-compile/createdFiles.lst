@@ -1,0 +1,6 @@
+com\hms\core\models\Complaint.class
+com\hms\core\services\ComplaintService.class
+com\hms\core\services\RoomAllocationService.class
+com\hms\core\models\Student.class
+com\hms\core\models\Room.class
+com\hms\core\services\FeePaymentService.class
